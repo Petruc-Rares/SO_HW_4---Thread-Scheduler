@@ -227,7 +227,9 @@ void test_sched_21(void)
 	sched_yield();
 	so_end();
 
+	//printf("CHIAR PANA AICI\n");
 	basic_test(test_exec_status == SO_TEST_SUCCESS && last_priority == 1);
+	//printf("CHIAR SI PANA AICI\n");
 }
 
 #undef FAIL_IF_NOT_PRIO
