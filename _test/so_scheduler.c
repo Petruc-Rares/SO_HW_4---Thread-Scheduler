@@ -33,13 +33,15 @@ struct scheduler {
     thread **threads;
     unsigned int no_threads;
     thread *running_thread;
+    // TEST PURPOSES
+    unsigned int quantum_no;
 };
 
 struct thread {
     // not sure it will be used
     so_handler *func;
     //priority of the thread
-    int priority;
+    unsigned int priority;
     // NEW, READY, RUNNING, WAITING, TERMINATED
     unsigned int state;
     // how much time a thread has left
@@ -47,18 +49,79 @@ struct thread {
     unsigned int time_quantum_left;
     sem_t is_terminated;
     sem_t is_running;
+    sem_t state_updated;
     pthread_t thread_id;
     unsigned int no_times_on_processor;
     unsigned int wait_event;
+    unsigned int last_quantum;
 };
 
 scheduler my_scheduler;
 
+void print_state(thread *thread) {
+    unsigned int state = thread->state;
+
+    if (state == NEW) {
+        printf("NEW");
+    } else if (state == READY) {
+        printf("READY");
+    } else if (state == RUNNING) {
+        printf("RUNNING");
+    } else if (state == WAITING) {
+        printf("WAITING");
+    } else if (state == TERMINATED) {
+        printf("TERMINATED");
+    }
+    printf("\n");
+}
+
+void print_thread(thread *thread) {
+    printf("thread id: %u\n", thread->thread_id);
+    printf("priority: %u\n", thread->priority);
+    print_state(thread);   
+    printf("no times on processor: %u\n", thread->no_times_on_processor);
+    printf("last quantum number: %u\n", thread->last_quantum);
+
+    printf("\n\n");
+}
+
+void print_scheduler() {
+    //printf("\n\ninfo scheduler:\n\n");
+
+    //printf("running id: %u din %u\n", my_scheduler.running_thread->thread_id, pthread_self());
+    if (my_scheduler.running_thread->thread_id != pthread_self()) {
+        printf("EROARE URIOASA\n");
+        exit(2);
+    }
+
+
+    //printf("max quantum: %u\n", max_quantum);
+
+    /*
+    for (int i = 0; i < my_scheduler.no_threads - 1; i++) {
+        for (int j = i + 1; j < my_scheduler.no_threads; j++) {
+            if ((my_scheduler.threads[i]->last_quantum == 
+                my_scheduler.threads[j]->last_quantum) &&
+                (my_scheduler.threads[i]->last_quantum) &&
+                (my_scheduler.threads[j]->last_quantum)) {
+                    print_thread(my_scheduler.threads[i]);
+                    print_thread(my_scheduler.threads[j]);
+
+                    printf("QUANTUM EQUAL\n");
+                    exit(2);
+                }
+        }
+    }*/
+    //printf("crt running thread id: %u\n", my_scheduler.running_thread->thread_id);
+    //printf("no threads: %u\n", my_scheduler.no_threads);
+    /*for (int i = 0; i < my_scheduler.no_threads; i++) {
+        print_thread(my_scheduler.threads[i]);
+    }*/
+}
+
 void make_schedule(thread *prev_thread) {
     if (prev_thread->state == WAITING) {
         thread *best_candidate = NULL;
-        int flag = 0;
-        thread *aux = NULL;
 
         for (int i = 0; i < my_scheduler.no_threads; i++) {
 
@@ -79,47 +142,51 @@ void make_schedule(thread *prev_thread) {
             unsigned int compare_no_times_on_processor =
                  my_scheduler.threads[i]->no_times_on_processor;
 
-            //printf("compare: %u %u\n", compare_priority, compare_no_times_on_processor);
-            //printf("best: %u %u\n", best_candidate->priority, best_candidate->no_times_on_processor);
+           // printf("compare: %u %u\n", compare_priority, compare_no_times_on_processor);
+           // printf("best: %u %u\n", best_candidate->priority, best_candidate->no_times_on_processor);
 
             if (compare_priority > best_candidate->priority) {
                 best_candidate = my_scheduler.threads[i];
-                flag = 2;
+                //flag = 2;
             } else if (compare_priority == best_candidate->priority) {
                 // test 12
                 if (compare_no_times_on_processor < best_candidate->no_times_on_processor) {
                     best_candidate = my_scheduler.threads[i];
-                    flag = 2;
+                   // flag = 2;
                 }
                 // test 13
-                else if ((flag == 0) && (compare_no_times_on_processor == prev_thread->no_times_on_processor)) {
-                    aux = my_scheduler.threads[i];
-                    flag = 1;
+                else if  ((compare_no_times_on_processor == best_candidate->no_times_on_processor) &&
+                    (my_scheduler.threads[i]->last_quantum < best_candidate->last_quantum)) {
+                    best_candidate = my_scheduler.threads[i];
+                    //flag = 1;
                 }
             }
         }
         // test 13
         // TODO - 1 MORE CONDITION IS NEEDED I THINK ABOUT best_candidate
-        if (flag == 1) {
-            best_candidate = aux;
-        }
 
 
         sem_post(&(best_candidate->is_running));
-        sem_wait(&(prev_thread->is_running));
-        prev_thread->state = READY;
         // mark update state
-        sem_post(&(prev_thread->is_terminated));
+        prev_thread->state = READY;
+        sem_post(&(best_candidate->state_updated));
+
         sem_wait(&(prev_thread->is_running));
+
+        sem_wait(&(prev_thread->is_running));
+        sem_wait(&(prev_thread->state_updated));
         prev_thread->state = RUNNING;
         prev_thread->time_quantum_left = my_scheduler.time_quantum;
         prev_thread->no_times_on_processor++;
-        my_scheduler.running_thread = prev_thread; 
+        
+        prev_thread->last_quantum = my_scheduler.quantum_no++;
+        
+        //printf("last_quantum: %u\n", my_scheduler.quantum_no);
+        my_scheduler.running_thread = prev_thread;
+        print_scheduler();
     } else if ((prev_thread->time_quantum_left == 0) &&
                 (prev_thread->state != TERMINATED)) {
         thread *best_candidate = prev_thread;
-        int flag = 0;
-        thread *aux = NULL;
         //printf("best candidate tid la inceput: %u\n", best_candidate->thread_id);
 
         for (int i = 0; i < my_scheduler.no_threads; i++) {
@@ -142,27 +209,23 @@ void make_schedule(thread *prev_thread) {
 
             if (compare_priority > best_candidate->priority) {
                 best_candidate = my_scheduler.threads[i];
-                flag = 2;
+                //flag = 2;
             } else if (compare_priority == best_candidate->priority) {
                 // test 12
                 if (compare_no_times_on_processor < best_candidate->no_times_on_processor) {
                     best_candidate = my_scheduler.threads[i];
-                    flag = 2;
+                //    flag = 2;
                 }
                 // test 13
-                else if ((flag == 0) && (compare_no_times_on_processor == prev_thread->no_times_on_processor)) {
-                    aux = my_scheduler.threads[i];
-                    flag = 1;
+                else if ((compare_no_times_on_processor == prev_thread->no_times_on_processor) &&
+                (my_scheduler.threads[i]->last_quantum < best_candidate->last_quantum)) {
+                    best_candidate = my_scheduler.threads[i];
+                    //flag = 1;
                 }
             }
         }
-        // test 13
-        // TODO - 1 MORE CONDITION IS NEEDED I THINK ABOUT best_candidate
-        if (flag == 1) {
-            best_candidate = aux;
-        }
 
-        //printf("best candidate tid la final: %u\n", best_candidate->thread_id); 
+       // printf("best candidate tid la final: %u\n", best_candidate->thread_id); 
        // printf("prev_thread no_times: %d\n", prev_thread->no_times_on_processor);
         //printf("best_candidate no_times: %d\n", best_candidate->no_times_on_processor);
         // TODO put at sleep the previous running thread
@@ -175,7 +238,10 @@ void make_schedule(thread *prev_thread) {
             prev_thread->state = RUNNING;
             prev_thread->time_quantum_left = my_scheduler.time_quantum;
             prev_thread->no_times_on_processor++;
+            prev_thread->last_quantum = my_scheduler.quantum_no++;
+           //         printf("last_quantum: %u\n", my_scheduler.quantum_no);
             my_scheduler.running_thread = prev_thread;
+            print_scheduler();
         } else {
             // otherwise wake up thread @best_candidate
 
@@ -185,47 +251,55 @@ void make_schedule(thread *prev_thread) {
             sem_post(&(best_candidate->is_running));
             prev_thread->state = READY;
             // mark update state
-            sem_post(&(prev_thread->is_terminated));
+            sem_post(&(best_candidate->state_updated));
+
             sem_wait(&(prev_thread->is_running));
+            sem_wait(&(prev_thread->state_updated));
+
             prev_thread->state = RUNNING;
             prev_thread->time_quantum_left = my_scheduler.time_quantum;
             prev_thread->no_times_on_processor++;
+            prev_thread->last_quantum = my_scheduler.quantum_no++;
+            //printf("last_quantum: %u\n", my_scheduler.quantum_no);
             my_scheduler.running_thread = prev_thread;
+            print_scheduler();
         }
     } else {
         // quantum not expired
         // check if a bigger priority thread exists
 
         thread *best_candidate = NULL;
-        int best_priority;
+        unsigned int best_priority;
         unsigned int best_no_times_on_processor;
-        int flag = 0;
-        thread *aux = NULL;
 
         if (prev_thread->state == TERMINATED) {
-            best_candidate = prev_thread;
-            best_priority = -1;
-            // TODO REMOVE MAGIC CONSTANTS
-            best_no_times_on_processor = 4000000000;
+            best_candidate = NULL;
         } else {
             best_candidate = prev_thread;
             best_priority = prev_thread->priority;
             best_no_times_on_processor = prev_thread->no_times_on_processor;
         }
+        
 
         for (int i = 0; i < my_scheduler.no_threads; i++) {
             if ((my_scheduler.threads[i]->state == WAITING)
               ||  (my_scheduler.threads[i]->state == TERMINATED)
               || (my_scheduler.threads[i] == prev_thread)) continue;
               
+            if (!best_candidate) {  
+                best_candidate = my_scheduler.threads[i];
+               // printf("a fost ales %u\n", best_candidate->thread_id);
+                best_priority = best_candidate->priority;
+                best_no_times_on_processor = best_candidate->no_times_on_processor;
+                continue;
+            }
 
-            int compare_priority =
+            unsigned int compare_priority =
                  my_scheduler.threads[i]->priority;
-            int compare_no_times_on_processor =
+            unsigned int compare_no_times_on_processor =
                  my_scheduler.threads[i]->no_times_on_processor;
 
-
-            //printf("de comparat: %u\n", compare_no_times_on_processor)
+            //printf("de comparat: %u\n", compare_no_times_on_processor);
             //printf("compare priority: %d\n", compare_priority);
             // TODO - add no times on processor here i guess
             // if a new better priority thread appeared
@@ -233,19 +307,21 @@ void make_schedule(thread *prev_thread) {
                 best_candidate = my_scheduler.threads[i];
                 best_priority = my_scheduler.threads[i]->priority;
                 best_no_times_on_processor = my_scheduler.threads[i]->no_times_on_processor;
-                flag = 2;
+                //flag = 2;
             }
                 // interested just in priority if not terminated
             if (prev_thread->state != TERMINATED) continue;
+            
             if (compare_priority == best_priority) {
                 if (compare_no_times_on_processor < best_candidate->no_times_on_processor) {
                     best_candidate = my_scheduler.threads[i];
-                    best_priority = my_scheduler.threads[i]->priority;
-                    best_no_times_on_processor = my_scheduler.threads[i]->no_times_on_processor;
-                    flag = 2;
-                } else if ((flag == 0) && (compare_no_times_on_processor == prev_thread->no_times_on_processor)) {
-                    aux = my_scheduler.threads[i];
-                    flag = 1;
+                    best_priority = best_candidate->priority;
+                    best_no_times_on_processor = best_candidate->no_times_on_processor;
+                } else if ((compare_no_times_on_processor == best_no_times_on_processor) &&
+                 (my_scheduler.threads[i]->last_quantum < best_candidate->last_quantum)) {
+                    best_candidate = my_scheduler.threads[i];
+                    best_priority = best_candidate->priority;
+                    best_no_times_on_processor = best_candidate->no_times_on_processor;
                 }
             }
         }
@@ -255,14 +331,12 @@ void make_schedule(thread *prev_thread) {
 
         // todo: check test_exec ce valori da el cand pica
 
-        if (flag == 1) {
-            best_candidate = aux;
-        }
 
-        if (best_candidate == prev_thread) {
-          //  printf("\nNu s-a gasit un candidat cu prio mai mare\n");
+        //printf("se incearca o schimbare\n");
+        if ((best_candidate == prev_thread) || (best_candidate == NULL)) {
             return;
         }
+
     
         //printf("\nS-a gasit un candidat cu prio mai mare\n");
         // printf("\nse blocheaza: %u\n", prev_thread->thread_id);
@@ -271,13 +345,22 @@ void make_schedule(thread *prev_thread) {
         // found a thread with a bigger priority
         sem_post(&(best_candidate->is_running));
         if (prev_thread->state != TERMINATED) {
-            prev_thread->state = READY;  
+            prev_thread->state = READY; 
+            sem_post(&(best_candidate->state_updated));
            // printf("se blocheaza: %u\n", pthread_self());      
             sem_wait(&(prev_thread->is_running));
+            sem_wait(&(prev_thread->state_updated));
             prev_thread->state = RUNNING;
             prev_thread->time_quantum_left = my_scheduler.time_quantum;
             prev_thread->no_times_on_processor++;
+            prev_thread->last_quantum = my_scheduler.quantum_no++;
+            //printf("last_quantum: %u\n", my_scheduler.quantum_no);
             my_scheduler.running_thread = prev_thread;
+            print_scheduler();
+        } else {
+            // nothing to update - crt thread finishes
+            // just unlock 2nd semamphore for best_candidate
+            sem_post(&(best_candidate->state_updated));
         }
     }
 }
@@ -292,6 +375,7 @@ int so_init(unsigned int time_quantum, unsigned int io) {
     my_scheduler.io = io;
     my_scheduler.initialised = 1;
     my_scheduler.running_thread = NULL;
+    my_scheduler.quantum_no = 0;
 
     return 0;
 }
@@ -313,24 +397,25 @@ void* start_thread(void *params)
 {
 	thread *crt_thread = (thread *) params;
 
-    // thread already running
-
-    if (my_scheduler.running_thread) {
-        crt_thread->state = READY;
-        sem_post(&(crt_thread->is_terminated));
-    }
+    crt_thread->state = READY;
+    int rc = insert_thread(crt_thread);
+    if (rc < 0)
+        return INVALID_TID;
 
     // wait to be planned
     // sem_wait() ; de unde primeste sem_post?
     // prob din so_exec dupa ce se alege cel mai bun
+    sem_post(&(crt_thread->is_terminated));
     sem_wait(&(crt_thread->is_running));
-
+    // wait to know everyhthing about prev threads
+    sem_wait(&(crt_thread->state_updated));
     crt_thread->state = RUNNING;
-    crt_thread->no_times_on_processor = 1;
-    my_scheduler.running_thread = crt_thread;
 
-    if (my_scheduler.running_thread == NULL)
-        sem_post(&(crt_thread->is_terminated));
+    my_scheduler.running_thread = crt_thread;
+    crt_thread->no_times_on_processor = 1;
+    crt_thread->last_quantum = my_scheduler.quantum_no++;
+    //print_scheduler();
+    //printf("last_quantum: %u\n", my_scheduler.quantum_no);
     (crt_thread->func)(crt_thread->priority);
 
     // when reach here thread finished work
@@ -362,41 +447,29 @@ tid_t so_fork(so_handler *func, unsigned int priority) {
     crt_thread->time_quantum_left = my_scheduler.time_quantum;
     crt_thread->no_times_on_processor = 0;
     crt_thread->wait_event = NO_WAIT_EVENT;
+    crt_thread->last_quantum = 0;
     sem_init(&crt_thread->is_terminated, 0, 0);
     sem_init(&crt_thread->is_running, 0, 0);
+    sem_init(&crt_thread->state_updated, 0, 0);
 
     // creare new thread that will execute start_thread function
     rc = pthread_create(&crt_thread->thread_id, NULL, &start_thread, crt_thread);
-    
-   // printf("a fost creat thread-ul cu id-ul %u\n", crt_thread->thread_id);
-
+    //printf("a fost creat thread-ul cu id: %u\n", crt_thread->thread_id);
     // pthread_create failed
     if (rc)
         return INVALID_TID;
 
-    rc = insert_thread(crt_thread);
-    if (rc < 0)
-        return INVALID_TID;
 
-
-    //printf("no_threads: %d\n", my_scheduler.no_threads);
 
     // check if not first thread to be scheduled
-    if (my_scheduler.no_threads != 1) {
-        // NOT SURE OF THIS
-        // more generally, when so_exec is being
-        // run - if just by checker or also
-        // by me
-        //printf("de aici\n\n");
+    if (my_scheduler.no_threads == 0) {
+        sem_post(&(crt_thread->is_running));
+        sem_post(&(crt_thread->state_updated));
+        sem_wait(&(crt_thread->is_terminated));
+    } else {
         sem_wait(&(crt_thread->is_terminated));
         so_exec();
-        //printf("si am iesit\n\n");
-    } else {
-        sem_post(&(crt_thread->is_running));
     }
-
-    //printf("no threads after: %d\n", my_scheduler.no_threads);
-
     // return id of the new created thread
     return crt_thread->thread_id;
 }
@@ -431,7 +504,7 @@ int so_signal(unsigned int io) {
                 no_waken_threads++;
                 crt_thread->wait_event = NO_WAIT_EVENT;
                 // wait for thread to update its' state
-                sem_wait(&(crt_thread->is_terminated));
+                sem_wait(&(crt_thread->state_updated));
             }
     }
 
@@ -445,8 +518,9 @@ int so_signal(unsigned int io) {
 
 void so_exec(void) {
     thread *prev_thread = my_scheduler.running_thread;
-
-    //printf("now running: %u, din %u\n", prev_thread->thread_id, pthread_self());
+    
+    
+    //printf("now running: %u\n", prev_thread->thread_id);
     //printf("no_threads: %d\n", my_scheduler.no_threads);
 
     if (prev_thread == NULL) {
@@ -462,16 +536,15 @@ void so_exec(void) {
     // if quantum expired for running plan next best priority
     // thread to run
     make_schedule(prev_thread);
-    //sleep(1);
 }
 
 void so_end(void) {
     // TODO - free used resources
 
     for (int i = 0;  i < my_scheduler.no_threads; i++) {
+        pthread_join(my_scheduler.threads[i]->thread_id, NULL);
         sem_destroy(&my_scheduler.threads[i]->is_running);
         sem_destroy(&my_scheduler.threads[i]->is_terminated);
-        pthread_join(my_scheduler.threads[i]->thread_id, NULL);
         //free(my_scheduler.threads[i]);
     }
     // etc...

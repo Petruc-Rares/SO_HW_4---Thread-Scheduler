@@ -75,6 +75,7 @@ static tid_t test_tid_13_2;
 
 static void test_sched_handler_13_2(unsigned int dummy)
 {
+	//printf("test_exec_last_tid: %u\n", test_exec_last_tid);
 	SO_TEST_AND_SET(test_tid_13_1, test_tid_13_2);
 	so_exec();
 	SO_TEST_AND_SET(test_tid_13_2, test_tid_13_2);
@@ -91,7 +92,9 @@ static void test_sched_handler_13_2(unsigned int dummy)
 static void test_sched_handler_13_1(unsigned int dummy)
 {
 	test_exec_last_tid = test_tid_13_1 = get_tid();
+	//printf("test_tid_13_1: %u\n", test_tid_13_1);
 	test_tid_13_2 = so_fork(test_sched_handler_13_2, 0);
+	//printf("test_tid_13_2: %u\n", test_tid_13_2);
 
 	/* allow the other thread to init */
 	sched_yield();
