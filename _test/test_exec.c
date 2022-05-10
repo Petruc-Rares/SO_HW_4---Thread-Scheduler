@@ -75,7 +75,6 @@ static tid_t test_tid_13_2;
 
 static void test_sched_handler_13_2(unsigned int dummy)
 {
-	//printf("test_exec_last_tid: %u\n", test_exec_last_tid);
 	SO_TEST_AND_SET(test_tid_13_1, test_tid_13_2);
 	so_exec();
 	SO_TEST_AND_SET(test_tid_13_2, test_tid_13_2);
@@ -92,13 +91,10 @@ static void test_sched_handler_13_2(unsigned int dummy)
 static void test_sched_handler_13_1(unsigned int dummy)
 {
 	test_exec_last_tid = test_tid_13_1 = get_tid();
-	//printf("test_tid_13_1: %u\n", test_tid_13_1);
 	test_tid_13_2 = so_fork(test_sched_handler_13_2, 0);
-	//printf("test_tid_13_2: %u\n", test_tid_13_2);
 
 	/* allow the other thread to init */
 	sched_yield();
-
 
 	/* I should continue running */
 	SO_TEST_AND_SET(test_tid_13_1, test_tid_13_1);
@@ -143,7 +139,6 @@ static tid_t test_tid_14_4;
 
 static void test_sched_handler_14_4(unsigned int dummy)
 {
-	//printf("a patra data aici\n");
 	SO_TEST_AND_SET(test_tid_14_3, test_tid_14_4);
 	so_exec();
 	SO_TEST_AND_SET(test_tid_14_4, test_tid_14_4);
@@ -153,7 +148,6 @@ static void test_sched_handler_14_4(unsigned int dummy)
 
 static void test_sched_handler_14_3(unsigned int dummy)
 {
-	//printf("a treia data aici\n");
 	SO_TEST_AND_SET(test_tid_14_2, test_tid_14_3);
 	so_exec();
 	SO_TEST_AND_SET(test_tid_14_3, test_tid_14_3);
@@ -173,13 +167,11 @@ static void test_sched_handler_14_3(unsigned int dummy)
 
 static void test_sched_handler_14_2(unsigned int dummy)
 {
-	//printf("a doua data aici\n");
 	SO_TEST_AND_SET(test_tid_14_1, test_tid_14_2);
 	so_exec();
 	SO_TEST_AND_SET(test_tid_14_2, test_tid_14_2);
 	so_exec();
 	SO_TEST_AND_SET(test_tid_14_2, test_tid_14_2);
-	//printf("ajungem aici\n");
 
 	/* leaving - thread 3 should start */
 	test_exec_status = SO_TEST_FAIL;
@@ -187,18 +179,14 @@ static void test_sched_handler_14_2(unsigned int dummy)
 
 static void test_sched_handler_14_1(unsigned int dummy)
 {
-	//printf("prima data aici\n");
 	test_exec_last_tid = test_tid_14_1 = get_tid();
-	//printf("test_tid_14_1: %u\n", test_tid_14_1);
 	test_tid_14_2 = so_fork(test_sched_handler_14_2, 0);
-	//printf("test_tid_14_2: %u\n", test_tid_14_2);
 	/* allow the other thread to init */
 	sched_yield();
 
 	/* I should continue running */
 	SO_TEST_AND_SET(test_tid_14_1, test_tid_14_1);
 	test_tid_14_3 = so_fork(test_sched_handler_14_3, 0);
-	//printf("test_tid_14_3: %u\n", test_tid_14_3);
 	sched_yield();
 
 	/* I should continue running */
@@ -206,17 +194,15 @@ static void test_sched_handler_14_1(unsigned int dummy)
 	test_tid_14_4 = so_fork(test_sched_handler_14_4, 0);
 	sched_yield();
 
-	//printf("test_tid_14_4: %u\n", test_tid_14_4);
 	/* still me */
 	SO_TEST_AND_SET(test_tid_14_1, test_tid_14_1);
 	so_exec();
 
 	/* should be preempted here */
 	SO_TEST_AND_SET(test_tid_14_4, test_tid_14_1);
-	//printf("cinci\n");
 	so_exec();
 	SO_TEST_AND_SET(test_tid_14_1, test_tid_14_1);
-	//printf("sase cai\n");
+
 	/* leaving - make sure the others execute successfully */
 	test_exec_status = SO_TEST_FAIL;
 }
@@ -267,17 +253,13 @@ static void test_sched_handler_15(unsigned int priority)
 	switch (priority) {
 	case 1:
 		/* test if I was scheduled before P2 */
-		
 		SO_FAIL_IF_NOT_PRIO(2,
 			"scheduled a test with a bogus priority");
 		break;
 
 	case 2:
 		/* fork P4 */
-		//printf("prima oara aici\n");
-		test_tid_14_2 = so_fork(test_sched_handler_15, 4);
-//		printf("th_id_2: %u\n", th_id_2);
-
+		so_fork(test_sched_handler_15, 4);
 
 		/* if I was not preempted or P3 didn't run - error */
 		SO_FAIL_IF_NOT_PRIO(3, "task 2 was not preempted");
@@ -288,22 +270,16 @@ static void test_sched_handler_15(unsigned int priority)
 		SO_FAIL_IF_NOT_PRIO(4, "highest priority was not scheduled");
 		so_fork(test_sched_handler_15, 1);
 
-
-
 		/* P1 < P3 - I still have to run */
 		SO_FAIL_IF_NOT_PRIO(3,
 			"somebody else was scheduled instead of task 3");
 		break;
 
 	case 4:
-	
 		test_exec_last_priority = 4;
 
 		/* fork lower priority P3 */
 		so_fork(test_sched_handler_15, 3);
-
-//		printf("a doua oara aici\n");
-
 
 		/* I shouldn't have been preempted */
 		SO_FAIL_IF_NOT_PRIO(4,
@@ -382,7 +358,6 @@ static void test_sched_generic_check(void)
 	if (exec_time == 0)
 		so_fail("nothing was executed");
 
-
 	/* integrity check - all the tasks had been consumed */
 	for (idx = 0; idx < tasks_no; idx++)
 		total_exec_time += tasks_info[idx].executed;
@@ -413,7 +388,6 @@ static void test_sched_generic_check(void)
 			last_task = current_task;
 			current_task->runtime = 0;
 		}
-
 		/* check if it has nothing more to execute */
 		if (current_task->executed == 0)
 			so_fail("tasks has nothing more to execute");
@@ -436,10 +410,7 @@ static void test_sched_generic_check(void)
 				current_task->runtime > quantum) {
 			so_fail("task was not preempted");
 		}
-
 	}
-
-	
 	test_exec_status = SO_TEST_SUCCESS;
 }
 
@@ -563,8 +534,6 @@ static void test_sched_handler_18(unsigned int priority)
 	/* get a rand number of iterations to do */
 	rand_iterations = get_rand(1, SO_MAX_UNITS);
 
-	//printf("rand iterations: %u\n", rand_iterations);
-
 	while (rand_iterations-- && exec_time < SO_MAX_EXECUTION_TIME) {
 
 		/* fill in history */
@@ -585,7 +554,6 @@ static void test_sched_handler_18(unsigned int priority)
 			so_exec();
 		}
 	}
-
 	if (exec_time == SO_MAX_EXECUTION_TIME)
 		test_exec_status = SO_TEST_SUCCESS;
 }

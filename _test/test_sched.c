@@ -303,8 +303,8 @@ static void test_sched_handler_10_master(unsigned int prio)
 
 void test_sched_10(void)
 {
-	//test_sched_fork_runs = get_rand(1, SO_MAX_UNITS);
-	//test_sched_fork_runs = 2;
+	test_sched_fork_runs = get_rand(1, SO_MAX_UNITS);
+
 	if (so_init(SO_MAX_UNITS, 0) < 0) {
 		so_error("initialization failed");
 		goto test;
@@ -383,4 +383,3 @@ void test_sched_11(void)
 
 	basic_test(test_fork_execution_status);
 }
-
