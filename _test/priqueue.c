@@ -11,7 +11,6 @@ priqueue *create_queue() {
     prio_queue->head = NULL;
     prio_queue->tail = NULL;
 
-    
     return prio_queue;
 }
 

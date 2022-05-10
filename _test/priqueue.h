@@ -27,6 +27,8 @@ struct thread {
     unsigned int time_quantum_left;
     sem_t thread_started;
     sem_t can_run;
+    sem_t ended;
+    sem_t status_updated;
     pthread_t thread_id;
     unsigned int no_times_on_processor;
     unsigned int wait_event;
