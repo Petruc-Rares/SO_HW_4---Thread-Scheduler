@@ -1,10 +1,11 @@
 // guide after:
-// http://freesourcecode.net/cprojects/112198/A-generic-queue-in-c-in-c#.YnkY1IxBxPa
+// http://freesourcecode.net/cprojects/112198/
+// A-generic-queue-in-c-in-c#.YnkY1IxBxPa
 // https://github.com/kostakis/Generic-Queue
 
 #include "so_scheduler.h"
-#include <fcntl.h>           /* For O_* constants */
-#include <sys/stat.h>        /* For mode constants */
+#include <fcntl.h>		   /* For O_* constants */
+#include <sys/stat.h>		/* For mode constants */
 
 //#include <semaphore.h>
 
@@ -16,34 +17,34 @@ typedef struct priqueue_node priqueue_node;
 typedef struct thread thread;
 
 struct thread {
-    // not sure it will be used
-    so_handler *func;
-    //priority of the thread
-    int priority;
-    // TODO - not sure state is needed anymore
-    // NEW, READY, RUNNING, WAITING, TERMINATED
-    unsigned int state;
-    // how much time a thread has left
-    // for the current quantum
-    unsigned int time_quantum_left;
-    HANDLE thread_started;
-    HANDLE can_run;
-    HANDLE ended;
-    HANDLE status_updated;
+	// not sure it will be used
+	so_handler *func;
+	//priority of the thread
+	int priority;
+	// TODO - not sure state is needed anymore
+	// NEW, READY, RUNNING, WAITING, TERMINATED
+	unsigned int state;
+	// how much time a thread has left
+	// for the current quantum
+	unsigned int time_quantum_left;
+	HANDLE thread_started;
+	HANDLE can_run;
+	HANDLE ended;
+	HANDLE status_updated;
 	HANDLE thread_id;
-    //pthread_t thread_id;
-    unsigned int no_times_on_processor;
-    unsigned int wait_event;
+	//pthread_t thread_id;
+	unsigned int no_times_on_processor;
+	unsigned int wait_event;
 };
 
 struct priqueue_node {
-    thread *info;
-    struct priqueue_node *next;
+	thread *info;
+	struct priqueue_node *next;
 };
 
 struct priqueue {
-    priqueue_node *head;
-    priqueue_node *tail;
+	priqueue_node *head;
+	priqueue_node *tail;
 };
 
 priqueue_node *create_node(void *elem);
