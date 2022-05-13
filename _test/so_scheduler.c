@@ -215,20 +215,71 @@ DECL_PREFIX tid_t so_fork(so_handler *func, unsigned int priority)
 		WaitForSingleObject(crt_thread->ended, INFINITE);
     }
 	
-	WaitForSingleObject(rc, INFINITE);
-	//printf("dau return\n");
-
     return IDThread;
 }
 
 DECL_PREFIX int so_wait(unsigned int io)
 {
-	return 0;
+	thread *waiting_thread = NULL;
+	if ((io >= my_scheduler->io) || (io < 0)) {
+        so_exec();
+        return -1;
+    }
+
+    waiting_thread = my_scheduler->running_thread;
+    
+    waiting_thread->state = WAITING;
+
+    enqueue(my_scheduler->waiting_threads[io], waiting_thread);
+    so_exec();
+    //printf("thread %u asteapta dupa %u\n", waiting_thread->thread_id, io);
+	
+	WaitForSingleObject(waiting_thread->can_run, INFINITE);
+
+    //printf("thread %u a primit semnal %u\n", waiting_thread->thread_id, io);
+    enqueue(my_scheduler->ready_threads, waiting_thread);
+    waiting_thread->state = READY;
+	
+	ReleaseSemaphore(waiting_thread->status_updated, 1, NULL);
+
+    WaitForSingleObject(waiting_thread->can_run, INFINITE);
+    //printf("thread %u ruleaza acum din so_wait\n", waiting_thread->thread_id);
+    
+
+    dequeue(my_scheduler->ready_threads);
+    my_scheduler->running_thread = waiting_thread;
+    my_scheduler->running_thread->time_quantum_left = my_scheduler->time_quantum;
+
+    return 0;
 }
 
 DECL_PREFIX int so_signal(unsigned int io)
 {
-	return 0;
+	int no_waken_threads = 0;   
+	priqueue *waiting_threads = NULL;
+	thread *waiting_thread = NULL;
+
+    if ((io >= my_scheduler->io) || (io < 0)) {
+        so_exec();
+        return -1;
+    }
+
+    waiting_threads = my_scheduler->waiting_threads[io];
+
+    // get count of threads that are woken up
+    waiting_thread = NULL;
+
+    while (waiting_thread = dequeue(waiting_threads)) {
+        //printf("thread %u trimite semnal la %u\n", my_scheduler->running_thread->thread_id, waiting_thread->thread_id);
+		ReleaseSemaphore(waiting_thread->can_run, 1, NULL);
+        no_waken_threads++;
+        // wait to place in queue for ready threads
+		WaitForSingleObject(waiting_thread->status_updated, INFINITE);
+    }
+
+    so_exec();
+
+    return no_waken_threads;
 }
 
 DECL_PREFIX void so_exec(void)
