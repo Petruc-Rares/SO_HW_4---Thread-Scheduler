@@ -3,8 +3,8 @@
 // https://github.com/kostakis/Generic-Queue
 
 #include "so_scheduler.h"
-#include <fcntl.h>           /* For O_* constants */
-#include <sys/stat.h>        /* For mode constants */
+#include <fcntl.h>		   /* For O_* constants */
+#include <sys/stat.h>		/* For mode constants */
 #include <semaphore.h>
 
 #ifndef PRIQUEUE_H_
@@ -15,33 +15,33 @@ typedef struct priqueue_node priqueue_node;
 typedef struct thread thread;
 
 struct thread {
-    // not sure it will be used
-    so_handler *func;
-    //priority of the thread
-    int priority;
-    // TODO - not sure state is needed anymore
-    // NEW, READY, RUNNING, WAITING, TERMINATED
-    unsigned int state;
-    // how much time a thread has left
-    // for the current quantum
-    unsigned int time_quantum_left;
-    sem_t thread_started;
-    sem_t can_run;
-    sem_t ended;
-    sem_t status_updated;
-    pthread_t thread_id;
-    unsigned int no_times_on_processor;
-    unsigned int wait_event;
+	// not sure it will be used
+	so_handler *func;
+	//priority of the thread
+	int priority;
+	// TODO - not sure state is needed anymore
+	// NEW, READY, RUNNING, WAITING, TERMINATED
+	unsigned int state;
+	// how much time a thread has left
+	// for the current quantum
+	unsigned int time_quantum_left;
+	sem_t thread_started;
+	sem_t can_run;
+	sem_t ended;
+	sem_t status_updated;
+	pthread_t thread_id;
+	unsigned int no_times_on_processor;
+	unsigned int wait_event;
 };
 
 struct priqueue_node {
-    thread *info;
-    struct priqueue_node *next;
+	thread *info;
+	struct priqueue_node *next;
 };
 
 struct priqueue {
-    priqueue_node *head;
-    priqueue_node *tail;
+	priqueue_node *head;
+	priqueue_node *tail;
 };
 
 priqueue_node *create_node(void *elem);
