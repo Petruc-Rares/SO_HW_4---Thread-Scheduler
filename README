@@ -1,50 +1,43 @@
-#
-#  4 - Thread Scheduler (Linux)
-#
-#  2017, Operating Systems
-#
+336 CA, PETRUC RARES, 15.05.2022
+							TEMA 4 - PLANIFICATOR DE THREADURI
 
-# Archive:
+	Organizare:
+		In implementarea temei, am folosit semafoare pentru sincronizare
+intre threaduri, astfel incat la un moment dat de timp sa simulez rularea
+unui singur thread per executabil. Tema mi se pare foarate utila si aplicata,
+am imbinat notiuni de SO cu notiuni de APD si SD. Despre implementarea mea,
+cred ca este una eficienta si destul de usoara de inteles/parcurs.
+		Structura scheduler are un camp "priqueue *terminated_threads",
+utilizat in realizarea pthread_join in functia so_end. Mai este un camp
+mai putin evident poate ca utilizare, anume "sem_t program_over", care
+ia valoarea 1, numai atunci cand ultimul thread a terminat si nu mai exista
+threaduri ce ii pot lua locul, odata luand valoarea 1, putandu-se executa
+intreg so_end-ul.
+		Se observa adesea in cod instructiuni de tipul:
+			"
+			enqueue(my_scheduler->ready_threads, prev_running_thread);
 
-> Makefile.checker
-> README
-> run_all.sh
-> _test/
-	> run_test,c
-	> run_test.h
-	> scheduler_test.h
-	> so_scheduler.h
-	> test_exec.c
-	> test_io.c
-	> test_sched.c
+			sem_post(&(candidate->can_run));
+			sem_wait(&(prev_running_thread->can_run));
+			dequeue(my_scheduler->ready_threads);
 
-# Build:
+			my_scheduler->running_thread = prev_running_thread;"
+		
+		Practic, prin a doua instructiune ii permitem candidatului mai bun
+decat a threadului curent ce ruleaza (prev_running_thread sau
+my_scheduler->running_thread), urmand ca threadul ce rula anterior sa astepte
+sa fie replanificat, pentru ca a fost deja introdus in coada de threaduri ready
+cu instructiunea 1. Ultimele 2 instructiuni se executa dupa ce threadul este
+readus in executie (replanificat in urma unui sem_post de alt thread) si
+practic il scot din coada de ready_threads si il reconfigureaza ca actual
+running thread.
 
-The local directory must contain the thread scheduler library
-(libscheduler.so). Use the Makefile.checker to properly build the run_test
-executable:
-
-	make -f Makefile.checker
-
-This command will also run all tests and print out the results.
-
-# Run:
-
-In order to run the test suite you can either use the run_all.sh script or
-the run_test executable. The loader must be able to locate the library
-(libscheduler.so) (use LD_LIBRARY_PATH).
-
-The run_all.sh script runs all tests and computes assignment grade (95 points
-maximum):
-
-	LD_LIBRARY_PATH=. ./run_all.sh
-
-In order to run a specific test, pass the test number (1 .. 20) to the run_test
-executable:
-
-	LD_LIBRARY_PATH=. ./_test/run_test 1
-
-# Debug:
-
-For debugging, define the SO_VERBOSE_ERROR symbol.
-
+	Implementare:
+		Intreg enuntul temei este implementat.
+		Am intampinat dificultati in sincronizare executiei la modul ca so_end
+era apelat desi alte threaduri inca executau instructiuni (astfel, am fost
+nevoit sa mai includ un semafor pentru scheduler care marcheaza finalul
+programului, "sem_t program_over"). Ceva interesant descoperit pe parcurs a
+fost o reamintire a faptului ca valorile actualizate de unele threaduri nu
+sunt imediat vizibile si de alte threaduri si am reconfigurat unele variabile
+unde a fost posibil, facandu-le de tip pointer.
